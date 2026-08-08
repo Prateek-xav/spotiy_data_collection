@@ -1,12 +1,21 @@
 import axios from 'axios';
 
+// Determine base API URL (Vite Environment Variable or production fallback or dev proxy)
+const getApiBaseUrl = () => {
+  if (import.meta.env.VITE_API_URL) {
+    const cleanUrl = import.meta.env.VITE_API_URL.replace(/\/$/, '');
+    return cleanUrl.endsWith('/api/research') ? cleanUrl : `${cleanUrl}/api/research`;
+  }
+  return '/api/research';
+};
+
 // Base API Client instance
 const API = axios.create({
-  baseURL: '/api/research',
+  baseURL: getApiBaseUrl(),
   headers: {
     'Content-Type': 'application/json'
   },
-  timeout: 10000
+  timeout: 15000
 });
 
 export function generateParticipantId() {
