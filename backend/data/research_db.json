@@ -1,0 +1,53 @@
+{
+  "participants": [
+    {
+      "participant_id": "sp-res-de6fb88f-e804-40ab-8eb5-fa7655bbee5e",
+      "created_at": "2026-08-08T17:39:18.816Z"
+    }
+  ],
+  "survey_responses": [
+    {
+      "participant_id": "sp-res-de6fb88f-e804-40ab-8eb5-fa7655bbee5e",
+      "age_group": "18-24",
+      "country": "India",
+      "occupation": "Student",
+      "music_hours": "1-2 hours/day",
+      "listening_contexts": [
+        "Studying"
+      ],
+      "genres": [
+        "Pop"
+      ],
+      "created_at": "2026-08-08T17:39:18.816Z"
+    }
+  ],
+  "participant_features": [
+    {
+      "participant_id": "sp-res-de6fb88f-e804-40ab-8eb5-fa7655bbee5e",
+      "age_group": "18-24",
+      "country": "India",
+      "occupation": "Student",
+      "music_hours": "1-2 hours/day",
+      "genre_pop": 1,
+      "genre_rock": 0,
+      "genre_hiphop": 0,
+      "genre_electronic": 0,
+      "genre_indie": 0,
+      "genre_classical": 0,
+      "genre_jazz": 0,
+      "genre_country": 0,
+      "genre_metal": 0,
+      "genre_rnb": 0,
+      "genre_kpop": 0,
+      "genre_reggae": 0,
+      "listening_studying": 1,
+      "listening_working": 0,
+      "listening_exercise": 0,
+      "listening_gaming": 0,
+      "listening_traveling": 0,
+      "listening_relaxing": 0,
+      "listening_socializing": 0,
+      "timestamp": "2026-08-08T17:39:18.816Z"
+    }
+  ]
+}
