@@ -1,60 +1,94 @@
+import { supabase } from '../db/supabaseClient.js';
+import { engineerParticipantFeatures } from '../utils/featureEngineer.js';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { v4 as uuidv4 } from 'uuid';
-import { engineerParticipantFeatures } from '../utils/featureEngineer.js';
 
+// ─── Local JSON Fallback (used when Supabase is not configured) ───────────────
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const DATA_DIR = path.join(__dirname, '../data');
 const DB_FILE = path.join(DATA_DIR, 'research_db.json');
 
-// Ensure data directory exists
-if (!fs.existsSync(DATA_DIR)) {
-  fs.mkdirSync(DATA_DIR, { recursive: true });
-}
-
-// Initialize database file structure
-function loadDb() {
+function loadLocalDb() {
+  if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
   if (!fs.existsSync(DB_FILE)) {
-    const initial = {
-      participants: [],
-      survey_responses: [],
-      participant_features: []
-    };
-    fs.writeFileSync(DB_FILE, JSON.stringify(initial, null, 2), 'utf-8');
+    const initial = { participants: [], survey_responses: [], participant_features: [] };
+    fs.writeFileSync(DB_FILE, JSON.stringify(initial, null, 2));
     return initial;
   }
-  try {
-    const content = fs.readFileSync(DB_FILE, 'utf-8');
-    return JSON.parse(content);
-  } catch {
-    return { participants: [], survey_responses: [], participant_features: [] };
-  }
+  try { return JSON.parse(fs.readFileSync(DB_FILE, 'utf-8')); }
+  catch { return { participants: [], survey_responses: [], participant_features: [] }; }
 }
 
-function saveDb(data) {
-  fs.writeFileSync(DB_FILE, JSON.stringify(data, null, 2), 'utf-8');
+function saveLocalDb(data) {
+  fs.writeFileSync(DB_FILE, JSON.stringify(data, null, 2));
 }
 
-/**
- * Save new research submission and engineered feature matrix
- */
+// ─── Save Research Submission ─────────────────────────────────────────────────
 export async function saveResearchSubmission(payload) {
-  const db = loadDb();
-  
-  // Format UUID identifier
   const participantId = `sp-res-${uuidv4()}`;
   const timestamp = new Date().toISOString();
+  const featureVector = engineerParticipantFeatures(participantId, payload);
 
-  // Participant Record
-  const participant = {
-    participant_id: participantId,
-    created_at: timestamp
-  };
+  // ── Supabase (Production) ──────────────────────────────────────────────────
+  if (supabase) {
+    // 1. Insert participant
+    const { error: pErr } = await supabase
+      .from('participants')
+      .insert({ participant_id: participantId });
+    if (pErr) throw new Error(`Participant insert failed: ${pErr.message}`);
 
-  // Raw Response Record
-  const responseRecord = {
+    // 2. Insert consent
+    await supabase.from('consents').insert({
+      participant_id: participantId,
+      understand_data: true,
+      agree_participate: true,
+      agree_analysis: true,
+    });
+
+    // 3. Insert survey response
+    const { error: srErr } = await supabase.from('survey_responses').insert({
+      participant_id: participantId,
+      age_group: payload.ageGroup,
+      country: payload.country,
+      occupation: payload.occupation || 'Prefer not to say',
+      music_hours: payload.musicHours || 'Unspecified',
+    });
+    if (srErr) throw new Error(`Survey response insert failed: ${srErr.message}`);
+
+    // 4. Insert listening contexts
+    if (payload.listeningContexts?.length) {
+      const contextRows = payload.listeningContexts.map(ctx => ({
+        participant_id: participantId,
+        context_name: ctx,
+      }));
+      await supabase.from('listening_context').insert(contextRows);
+    }
+
+    // 5. Insert genre preferences
+    if (payload.genres?.length) {
+      const genreRows = payload.genres.map(g => ({
+        participant_id: participantId,
+        genre_name: g,
+      }));
+      await supabase.from('genre_preferences').insert(genreRows);
+    }
+
+    // 6. Insert engineered feature vector
+    const { error: fErr } = await supabase.from('participant_features').insert(featureVector);
+    if (fErr) throw new Error(`Feature vector insert failed: ${fErr.message}`);
+
+    console.log(`✅ Supabase: Saved participant ${participantId}`);
+    return { success: true, participantId, timestamp, featureVector };
+  }
+
+  // ── Local JSON Fallback ────────────────────────────────────────────────────
+  console.warn('⚠️  Using local JSON fallback (Supabase not configured)');
+  const db = loadLocalDb();
+  db.participants.push({ participant_id: participantId, created_at: timestamp });
+  db.survey_responses.push({
     participant_id: participantId,
     age_group: payload.ageGroup,
     country: payload.country,
@@ -62,73 +96,91 @@ export async function saveResearchSubmission(payload) {
     music_hours: payload.musicHours || 'Unspecified',
     listening_contexts: payload.listeningContexts || [],
     genres: payload.genres || [],
-    created_at: timestamp
-  };
-
-  // 1-Row-Per-Participant Feature Matrix
-  const featureVector = engineerParticipantFeatures(participantId, payload);
-
-  db.participants.push(participant);
-  db.survey_responses.push(responseRecord);
+    created_at: timestamp,
+  });
   db.participant_features.push(featureVector);
+  saveLocalDb(db);
 
-  saveDb(db);
-
-  return {
-    success: true,
-    participantId,
-    timestamp,
-    featureVector
-  };
+  return { success: true, participantId, timestamp, featureVector };
 }
 
-/**
- * Retrieves aggregate statistics for research dashboard
- */
+// ─── Get Research Stats ───────────────────────────────────────────────────────
 export async function getResearchStats() {
-  const db = loadDb();
-  const total = db.participants.length;
+  if (supabase) {
+    const { data: participants, error } = await supabase
+      .from('survey_responses')
+      .select('age_group, country');
 
+    if (error) throw new Error(error.message);
+
+    const ageGroups = {};
+    const countries = {};
+    (participants || []).forEach(r => {
+      ageGroups[r.age_group] = (ageGroups[r.age_group] || 0) + 1;
+      countries[r.country] = (countries[r.country] || 0) + 1;
+    });
+
+    const { count } = await supabase
+      .from('participants')
+      .select('*', { count: 'exact', head: true });
+
+    const { data: genreData } = await supabase
+      .from('genre_preferences')
+      .select('genre_name');
+
+    const genres = {};
+    (genreData || []).forEach(g => {
+      genres[g.genre_name] = (genres[g.genre_name] || 0) + 1;
+    });
+
+    return {
+      totalParticipants: count || 0,
+      ageGroupDistribution: ageGroups,
+      topGenres: genres,
+      countryDistribution: countries,
+    };
+  }
+
+  // Local fallback
+  const db = loadLocalDb();
   const ageGroups = {};
   const genres = {};
   const countries = {};
-
-  db.survey_responses.forEach((resp) => {
-    ageGroups[resp.age_group] = (ageGroups[resp.age_group] || 0) + 1;
-    countries[resp.country] = (countries[resp.country] || 0) + 1;
-
-    (resp.genres || []).forEach((g) => {
-      genres[g] = (genres[g] || 0) + 1;
-    });
+  db.survey_responses.forEach(r => {
+    ageGroups[r.age_group] = (ageGroups[r.age_group] || 0) + 1;
+    countries[r.country] = (countries[r.country] || 0) + 1;
+    (r.genres || []).forEach(g => { genres[g] = (genres[g] || 0) + 1; });
   });
 
   return {
-    totalParticipants: total,
+    totalParticipants: db.participants.length,
     ageGroupDistribution: ageGroups,
     topGenres: genres,
-    countryDistribution: countries
+    countryDistribution: countries,
   };
 }
 
-/**
- * Deletes participant record and feature matrix by UUID
- */
+// ─── Delete Participant Data ──────────────────────────────────────────────────
 export async function deleteParticipantData(participantId) {
-  const db = loadDb();
-  const initialCount = db.participants.length;
+  if (supabase) {
+    // Cascade deletes handle related tables automatically via ON DELETE CASCADE
+    const { error } = await supabase
+      .from('participants')
+      .delete()
+      .eq('participant_id', participantId);
 
+    if (error) throw new Error(error.message);
+    console.log(`🗑️  Supabase: Deleted participant ${participantId}`);
+    return { success: true, deleted: true, participantId };
+  }
+
+  // Local fallback
+  const db = loadLocalDb();
+  const before = db.participants.length;
   db.participants = db.participants.filter(p => p.participant_id !== participantId);
   db.survey_responses = db.survey_responses.filter(r => r.participant_id !== participantId);
   db.participant_features = db.participant_features.filter(f => f.participant_id !== participantId);
-
-  const deleted = initialCount > db.participants.length;
-  if (deleted) {
-    saveDb(db);
-  }
-
-  return {
-    success: true,
-    deleted,
-    participantId
-  };
+  const deleted = before > db.participants.length;
+  if (deleted) saveLocalDb(db);
+  return { success: true, deleted, participantId };
 }
