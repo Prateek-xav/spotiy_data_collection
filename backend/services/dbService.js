@@ -28,21 +28,22 @@ function saveLocalDb(data) {
 
 // ─── Save Research Submission ─────────────────────────────────────────────────
 export async function saveResearchSubmission(payload) {
-  const participantId = `sp-res-${uuidv4()}`;
+  const dbUuid = uuidv4();                          // Valid UUID for Supabase
+  const participantId = `sp-res-${dbUuid}`;         // Display ID for user receipt
   const timestamp = new Date().toISOString();
-  const featureVector = engineerParticipantFeatures(participantId, payload);
+  const featureVector = engineerParticipantFeatures(dbUuid, payload); // Use valid UUID in DB
 
   // ── Supabase (Production) ──────────────────────────────────────────────────
   if (supabase) {
-    // 1. Insert participant
+    // 1. Insert participant (valid UUID only)
     const { error: pErr } = await supabase
       .from('participants')
-      .insert({ participant_id: participantId });
+      .insert({ participant_id: dbUuid });
     if (pErr) throw new Error(`Participant insert failed: ${pErr.message}`);
 
     // 2. Insert consent
     await supabase.from('consents').insert({
-      participant_id: participantId,
+      participant_id: dbUuid,
       understand_data: true,
       agree_participate: true,
       agree_analysis: true,
@@ -50,7 +51,7 @@ export async function saveResearchSubmission(payload) {
 
     // 3. Insert survey response
     const { error: srErr } = await supabase.from('survey_responses').insert({
-      participant_id: participantId,
+      participant_id: dbUuid,
       age_group: payload.ageGroup,
       country: payload.country,
       occupation: payload.occupation || 'Prefer not to say',
@@ -61,7 +62,7 @@ export async function saveResearchSubmission(payload) {
     // 4. Insert listening contexts
     if (payload.listeningContexts?.length) {
       const contextRows = payload.listeningContexts.map(ctx => ({
-        participant_id: participantId,
+        participant_id: dbUuid,
         context_name: ctx,
       }));
       await supabase.from('listening_context').insert(contextRows);
@@ -70,7 +71,7 @@ export async function saveResearchSubmission(payload) {
     // 5. Insert genre preferences
     if (payload.genres?.length) {
       const genreRows = payload.genres.map(g => ({
-        participant_id: participantId,
+        participant_id: dbUuid,
         genre_name: g,
       }));
       await supabase.from('genre_preferences').insert(genreRows);
@@ -80,7 +81,7 @@ export async function saveResearchSubmission(payload) {
     const { error: fErr } = await supabase.from('participant_features').insert(featureVector);
     if (fErr) throw new Error(`Feature vector insert failed: ${fErr.message}`);
 
-    console.log(`✅ Supabase: Saved participant ${participantId}`);
+    console.log(`✅ Supabase: Saved participant ${dbUuid} (display: ${participantId})`);
     return { success: true, participantId, timestamp, featureVector };
   }
 
