@@ -4,14 +4,12 @@ import { saveResearchSubmission, getResearchStats, deleteParticipantData } from 
 
 const router = express.Router();
 
-// Validation Schema for Survey Payload
+// Validation Schema for Research Submission Payload
 const surveyPayloadSchema = z.object({
   ageGroup: z.string().min(1, 'Age group is required'),
   country: z.string().min(1, 'Country is required'),
   occupation: z.string().optional(),
-  listeningContexts: z.array(z.string()).optional(),
-  genres: z.array(z.string()).optional(),
-  musicHours: z.string().optional(),
+  spotifyFeatures: z.record(z.any()).optional(),
   consentGiven: z.boolean().refine(val => val === true, 'Consent is required')
 });
 
@@ -22,7 +20,7 @@ router.post('/submit', async (req, res) => {
     const result = await saveResearchSubmission(validatedData);
     return res.status(201).json({
       success: true,
-      message: 'Survey response recorded successfully',
+      message: 'Survey response & Spotify feature vector recorded successfully',
       participantId: result.participantId,
       timestamp: result.timestamp
     });

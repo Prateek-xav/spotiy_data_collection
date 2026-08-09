@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useContext, useState, useEffect } from 'react';
 
 const SurveyContext = createContext();
 
@@ -13,10 +13,10 @@ const INITIAL_STATE = {
   ageGroup: '',
   country: '',
   occupation: '',
-  listeningContexts: [],
-  genres: [],
-  musicHours: '',
   consent: INITIAL_CONSENT,
+  spotifyConnected: false,
+  spotifyUser: null,
+  spotifyFeatures: null,
   validationErrors: {},
   submissionStatus: 'idle', // 'idle' | 'submitting' | 'success' | 'error'
   lastSubmissionData: null
@@ -27,14 +27,34 @@ export function SurveyProvider({ children }) {
     // Attempt to restore draft state from sessionStorage
     try {
       const saved = sessionStorage.getItem('survey_draft');
+      const savedFeatures = sessionStorage.getItem('spotify_extracted_features');
+      const savedProfile = sessionStorage.getItem('spotify_user_profile');
+
+      let parsed = {};
       if (saved) {
-        const parsed = JSON.parse(saved);
-        return { ...INITIAL_STATE, ...parsed };
+        parsed = JSON.parse(saved);
       }
+
+      let features = null;
+      if (savedFeatures) {
+        features = JSON.parse(savedFeatures);
+      }
+
+      let profile = null;
+      if (savedProfile) {
+        profile = JSON.parse(savedProfile);
+      }
+
+      return {
+        ...INITIAL_STATE,
+        ...parsed,
+        spotifyConnected: Boolean(features),
+        spotifyFeatures: features,
+        spotifyUser: profile
+      };
     } catch {
-      // Fallback to initial
+      return INITIAL_STATE;
     }
-    return INITIAL_STATE;
   });
 
   // Save state draft to sessionStorage on state changes
@@ -45,9 +65,6 @@ export function SurveyProvider({ children }) {
         ageGroup: state.ageGroup,
         country: state.country,
         occupation: state.occupation,
-        listeningContexts: state.listeningContexts,
-        genres: state.genres,
-        musicHours: state.musicHours,
         consent: state.consent
       }));
     } catch {
@@ -63,25 +80,35 @@ export function SurveyProvider({ children }) {
     }));
   };
 
-  const toggleArrayItem = (field, item) => {
-    setState((prev) => {
-      const currentList = prev[field] || [];
-      const updated = currentList.includes(item)
-        ? currentList.filter((i) => i !== item)
-        : [...currentList, item];
-      return {
-        ...prev,
-        [field]: updated,
-        validationErrors: { ...prev.validationErrors, [field]: undefined }
-      };
-    });
-  };
-
   const updateConsent = (key, value) => {
     setState((prev) => ({
       ...prev,
       consent: { ...prev.consent, [key]: value },
       validationErrors: { ...prev.validationErrors, consent: undefined }
+    }));
+  };
+
+  const setSpotifyData = (user, features) => {
+    setState((prev) => ({
+      ...prev,
+      spotifyConnected: true,
+      spotifyUser: user,
+      spotifyFeatures: features
+    }));
+  };
+
+  const clearSpotifyData = () => {
+    try {
+      sessionStorage.removeItem('spotify_extracted_features');
+      sessionStorage.removeItem('spotify_user_profile');
+    } catch {
+      // Ignore
+    }
+    setState((prev) => ({
+      ...prev,
+      spotifyConnected: false,
+      spotifyUser: null,
+      spotifyFeatures: null
     }));
   };
 
@@ -107,7 +134,7 @@ export function SurveyProvider({ children }) {
 
   const nextStep = () => {
     if (validateStep(state.currentStep)) {
-      if (state.currentStep < 4) {
+      if (state.currentStep < 3) {
         setState((prev) => ({ ...prev, currentStep: prev.currentStep + 1 }));
         return true;
       }
@@ -122,7 +149,7 @@ export function SurveyProvider({ children }) {
   };
 
   const goToStep = (step) => {
-    if (step >= 1 && step <= 4) {
+    if (step >= 1 && step <= 3) {
       setState((prev) => ({ ...prev, currentStep: step }));
     }
   };
@@ -130,6 +157,9 @@ export function SurveyProvider({ children }) {
   const resetSurvey = () => {
     try {
       sessionStorage.removeItem('survey_draft');
+      sessionStorage.removeItem('spotify_extracted_features');
+      sessionStorage.removeItem('spotify_user_profile');
+      sessionStorage.removeItem('spotify_token_data');
     } catch {
       // Ignore
     }
@@ -141,8 +171,9 @@ export function SurveyProvider({ children }) {
       value={{
         ...state,
         updateField,
-        toggleArrayItem,
         updateConsent,
+        setSpotifyData,
+        clearSpotifyData,
         isConsentComplete,
         validateStep,
         nextStep,
@@ -158,10 +189,5 @@ export function SurveyProvider({ children }) {
   );
 }
 
-export function useSurvey() {
-  const context = useContext(SurveyContext);
-  if (!context) {
-    throw new Error('useSurvey must be used within a SurveyProvider');
-  }
-  return context;
-}
+export { SurveyContext };
+export { useSurvey } from '../hooks/useSurvey';

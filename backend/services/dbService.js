@@ -55,29 +55,10 @@ export async function saveResearchSubmission(payload) {
       age_group: payload.ageGroup,
       country: payload.country,
       occupation: payload.occupation || 'Prefer not to say',
-      music_hours: payload.musicHours || 'Unspecified',
     });
     if (srErr) throw new Error(`Survey response insert failed: ${srErr.message}`);
 
-    // 4. Insert listening contexts
-    if (payload.listeningContexts?.length) {
-      const contextRows = payload.listeningContexts.map(ctx => ({
-        participant_id: dbUuid,
-        context_name: ctx,
-      }));
-      await supabase.from('listening_context').insert(contextRows);
-    }
-
-    // 5. Insert genre preferences
-    if (payload.genres?.length) {
-      const genreRows = payload.genres.map(g => ({
-        participant_id: dbUuid,
-        genre_name: g,
-      }));
-      await supabase.from('genre_preferences').insert(genreRows);
-    }
-
-    // 6. Insert engineered feature vector
+    // 4. Insert engineered Spotify feature vector
     const { error: fErr } = await supabase.from('participant_features').insert(featureVector);
     if (fErr) throw new Error(`Feature vector insert failed: ${fErr.message}`);
 
@@ -94,9 +75,6 @@ export async function saveResearchSubmission(payload) {
     age_group: payload.ageGroup,
     country: payload.country,
     occupation: payload.occupation || 'Prefer not to say',
-    music_hours: payload.musicHours || 'Unspecified',
-    listening_contexts: payload.listeningContexts || [],
-    genres: payload.genres || [],
     created_at: timestamp,
   });
   db.participant_features.push(featureVector);
@@ -125,19 +103,9 @@ export async function getResearchStats() {
       .from('participants')
       .select('*', { count: 'exact', head: true });
 
-    const { data: genreData } = await supabase
-      .from('genre_preferences')
-      .select('genre_name');
-
-    const genres = {};
-    (genreData || []).forEach(g => {
-      genres[g.genre_name] = (genres[g.genre_name] || 0) + 1;
-    });
-
     return {
       totalParticipants: count || 0,
       ageGroupDistribution: ageGroups,
-      topGenres: genres,
       countryDistribution: countries,
     };
   }
@@ -145,18 +113,15 @@ export async function getResearchStats() {
   // Local fallback
   const db = loadLocalDb();
   const ageGroups = {};
-  const genres = {};
   const countries = {};
   db.survey_responses.forEach(r => {
     ageGroups[r.age_group] = (ageGroups[r.age_group] || 0) + 1;
     countries[r.country] = (countries[r.country] || 0) + 1;
-    (r.genres || []).forEach(g => { genres[g] = (genres[g] || 0) + 1; });
   });
 
   return {
     totalParticipants: db.participants.length,
     ageGroupDistribution: ageGroups,
-    topGenres: genres,
     countryDistribution: countries,
   };
 }
@@ -164,7 +129,6 @@ export async function getResearchStats() {
 // ─── Delete Participant Data ──────────────────────────────────────────────────
 export async function deleteParticipantData(participantId) {
   if (supabase) {
-    // Cascade deletes handle related tables automatically via ON DELETE CASCADE
     const { error } = await supabase
       .from('participants')
       .delete()

@@ -13,6 +13,7 @@ export default function Navbar() {
         </span>
       </Link>
       
+      <a
         href="#how-it-works"
         className="font-mono text-xs tracking-widest text-text-muted hover:text-white transition-colors"
       >

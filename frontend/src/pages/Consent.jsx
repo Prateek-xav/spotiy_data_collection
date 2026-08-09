@@ -1,7 +1,6 @@
-import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSurvey } from '../Context/SurveyContext';
-import { ShieldCheck, Lock, Info, CheckCircle2, ArrowRight, HelpCircle } from 'lucide-react';
+import { ShieldCheck, Music, Info, ArrowRight } from 'lucide-react';
 
 export default function Consent() {
   const navigate = useNavigate();
@@ -10,7 +9,7 @@ export default function Consent() {
   const handleContinue = (e) => {
     e.preventDefault();
     if (isConsentComplete()) {
-      navigate('/survey');
+      navigate('/spotify-connect');
     }
   };
 
@@ -24,10 +23,10 @@ export default function Consent() {
           <span>INFORMED VOLUNTARY CONSENT</span>
         </div>
         <h1 className="text-3xl sm:text-4xl font-extrabold text-[#F5F7FA] tracking-tight">
-          Research Study Participation & Terms
+          Research Study Participation & Spotify Data Scope
         </h1>
         <p className="text-base sm:text-lg text-[#A7B0BC]">
-          Please review the study disclosure carefully before choosing to participate.
+          Please review the study disclosure and Spotify automated data collection scope carefully.
         </p>
       </div>
 
@@ -40,10 +39,10 @@ export default function Consent() {
           <div className="p-5 rounded-2xl bg-[#0E141B] border border-[#26313C] space-y-2">
             <h3 className="font-semibold text-[#F5F7FA] text-base flex items-center gap-2">
               <span className="w-2 h-2 rounded-full bg-[#1DB954]" />
-              What information is collected?
+              What Spotify information is collected?
             </h3>
             <p className="text-[#A7B0BC] leading-relaxed">
-              Broad age cohort (e.g., 18-24), country of residence, optional occupation status, listening habits, genre preferences, and daily listening duration.
+              Top artists across 3 time ranges, top tracks, recently played track timestamps (50 sample tracks), and basic library counts (playlists & saved track count).
             </p>
           </div>
 
@@ -53,17 +52,17 @@ export default function Consent() {
               Why is it collected?
             </h3>
             <p className="text-[#A7B0BC] leading-relaxed">
-              To analyze whether general statistical associations exist between music preferences and demographic age groups for academic research.
+              To automatically extract numerical statistical features (temporal listening distributions, release year statistics, explicit ratios, diversity metrics) for ML age-group prediction modeling.
             </p>
           </div>
 
           <div className="p-5 rounded-2xl bg-[#0E141B] border border-[#26313C] space-y-2">
             <h3 className="font-semibold text-[#F5F7FA] text-base flex items-center gap-2">
               <span className="w-2 h-2 rounded-full bg-[#1DB954]" />
-              How is it stored and used?
+              Anonymization & Storage
             </h3>
             <p className="text-[#A7B0BC] leading-relaxed">
-              Data is stored in anonymized database tables associated with a random UUID. It will never be sold, commercialized, or tied to credentials.
+              Raw Spotify track lists and OAuth tokens are never stored in the database. Only anonymous, non-identifying statistical feature vectors paired with your age-group cohort are stored.
             </p>
           </div>
 
@@ -73,7 +72,7 @@ export default function Consent() {
               Retention & Deletion Rights
             </h3>
             <p className="text-[#A7B0BC] leading-relaxed">
-              Participants retain the right to request deletion of their submitted record at any time via our dedicated data deletion workflow.
+              Participants retain the right to request deletion of their submitted dataset row at any time using their participant receipt ID.
             </p>
           </div>
 
@@ -83,7 +82,7 @@ export default function Consent() {
         <div className="p-4 rounded-2xl bg-[#18212B] border border-[#26313C] flex items-center gap-3 text-xs text-[#A7B0BC]">
           <Info className="w-5 h-5 text-[#1DB954] shrink-0" />
           <span>
-            <strong>Participation is completely voluntary.</strong> You may stop the survey at any point prior to submission.
+            <strong>Participation is completely voluntary.</strong> You may stop the process or disconnect Spotify at any point prior to final submission.
           </span>
         </div>
 
@@ -106,7 +105,7 @@ export default function Consent() {
               className="mt-1 w-5 h-5 rounded border-[#26313C] text-[#1DB954] focus:ring-[#1DB954] bg-[#090D12] accent-[#1DB954]"
             />
             <span className="text-sm font-medium text-[#F5F7FA]">
-              I understand what information this study collects.
+              I understand what Spotify metadata and demographic information this study collects.
             </span>
           </label>
 
@@ -123,7 +122,7 @@ export default function Consent() {
               className="mt-1 w-5 h-5 rounded border-[#26313C] text-[#1DB954] focus:ring-[#1DB954] bg-[#090D12] accent-[#1DB954]"
             />
             <span className="text-sm font-medium text-[#F5F7FA]">
-              I voluntarily agree to participate.
+              I voluntarily agree to authenticate Spotify and participate in the research study.
             </span>
           </label>
 
@@ -140,7 +139,7 @@ export default function Consent() {
               className="mt-1 w-5 h-5 rounded border-[#26313C] text-[#1DB954] focus:ring-[#1DB954] bg-[#090D12] accent-[#1DB954]"
             />
             <span className="text-sm font-medium text-[#F5F7FA]">
-              I understand that my responses may be used for research and statistical analysis.
+              I understand that my derived statistical features will be used for machine learning age group modeling.
             </span>
           </label>
 
@@ -163,7 +162,8 @@ export default function Consent() {
                   : 'bg-[#26313C] text-[#6F7A87] cursor-not-allowed opacity-60'
               }`}
             >
-              <span>Begin Survey</span>
+              <Music className="w-5 h-5 fill-current" />
+              <span>Connect Spotify</span>
               <ArrowRight className="w-5 h-5" />
             </button>
           </div>

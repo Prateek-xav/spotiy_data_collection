@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSurvey } from '../Context/SurveyContext';
 import { submitResearchSurvey } from '../services/researchService';
@@ -7,77 +7,66 @@ import { CheckCircle2, Loader2, Circle, Activity, AlertCircle } from 'lucide-rea
 export default function Collecting() {
   const navigate = useNavigate();
   const surveyState = useSurvey();
-  const { setSubmissionStatus, setLastSubmissionData } = surveyState;
+  const { setSubmissionStatus, setLastSubmissionData, spotifyFeatures, ageGroup, country, occupation } = surveyState;
 
   const [stepStates, setStepStates] = useState([
-    { id: 1, label: 'Survey responses saved', status: 'pending' },
-    { id: 2, label: 'Validating response schemas', status: 'pending' },
-    { id: 3, label: 'Preparing demographic feature vector', status: 'pending' },
-    { id: 4, label: 'Recording research submission', status: 'pending' },
+    { id: 1, label: 'Formulating ML feature vector & target age group', status: 'pending' },
+    { id: 2, label: 'Validating payload schema & statistical bounds', status: 'pending' },
+    { id: 3, label: 'Anonymizing record with random UUID receipt', status: 'pending' },
+    { id: 4, label: 'Submitting dataset row to research backend API', status: 'pending' },
   ]);
 
   const [errorMessage, setErrorMessage] = useState(null);
+  const submittedRef = useRef(false);
 
   useEffect(() => {
-    let isMounted = true;
+    if (submittedRef.current) return;
+    submittedRef.current = true;
 
     async function processSubmission() {
       try {
         setSubmissionStatus('submitting');
 
-        // Step 1: Save
-        await new Promise(r => setTimeout(r, 600));
-        if (!isMounted) return;
+        // Step 1: Formulate
+        await new Promise(r => setTimeout(r, 500));
         setStepStates(prev => prev.map(s => s.id === 1 ? { ...s, status: 'done' } : s.id === 2 ? { ...s, status: 'active' } : s));
 
         // Step 2: Validate
-        await new Promise(r => setTimeout(r, 700));
-        if (!isMounted) return;
+        await new Promise(r => setTimeout(r, 600));
         setStepStates(prev => prev.map(s => s.id === 2 ? { ...s, status: 'done' } : s.id === 3 ? { ...s, status: 'active' } : s));
 
-        // Step 3: Feature Prep
-        await new Promise(r => setTimeout(r, 800));
-        if (!isMounted) return;
+        // Step 3: Anonymize
+        await new Promise(r => setTimeout(r, 600));
         setStepStates(prev => prev.map(s => s.id === 3 ? { ...s, status: 'done' } : s.id === 4 ? { ...s, status: 'active' } : s));
 
-        // Submit via service
+        // Format final payload combining Spotify Features + Age Group label
         const payload = {
-          ageGroup: surveyState.ageGroup || '18-24',
-          country: surveyState.country || 'United States',
-          occupation: surveyState.occupation,
-          listeningContexts: surveyState.listeningContexts,
-          genres: surveyState.genres,
-          musicHours: surveyState.musicHours,
+          ageGroup: ageGroup || '18-24',
+          country: country || 'United States',
+          occupation: occupation || 'Prefer not to say',
+          spotifyFeatures: spotifyFeatures || { spotify_connected: false },
           consentGiven: true
         };
 
         const result = await submitResearchSurvey(payload);
-        if (!isMounted) return;
 
         setStepStates(prev => prev.map(s => ({ ...s, status: 'done' })));
         setSubmissionStatus('success');
         setLastSubmissionData(result);
 
-        // Transition to completion page
+        // Transition to thank-you completion page
         setTimeout(() => {
-          if (isMounted) {
-            navigate('/complete');
-          }
-        }, 600);
+          navigate('/complete');
+        }, 700);
 
       } catch (err) {
-        if (!isMounted) return;
         setErrorMessage(err.message || 'Submission failed. Please try again.');
         setSubmissionStatus('error');
       }
     }
 
     processSubmission();
-
-    return () => {
-      isMounted = false;
-    };
-  }, []);
+  }, [ageGroup, country, occupation, spotifyFeatures, setSubmissionStatus, setLastSubmissionData, navigate]);
 
   return (
     <div className="max-w-xl mx-auto px-4 py-16 sm:py-24 space-y-8 text-center">
@@ -88,13 +77,13 @@ export default function Collecting() {
 
       <div className="space-y-2">
         <span className="text-xs font-mono uppercase tracking-widest text-[#1DB954]">
-          DATA PIPELINE PROCESSING
+          ML DATASET PIPELINE PROCESSING
         </span>
         <h1 className="text-2xl sm:text-3xl font-extrabold text-[#F5F7FA]">
-          Preparing your research response
+          Recording Anonymous Research Entry
         </h1>
         <p className="text-sm text-[#A7B0BC]">
-          Securing and formatting voluntary response vector for statistical study.
+          Combining Spotify-derived features with age group cohort for dataset entry.
         </p>
       </div>
 
@@ -112,7 +101,7 @@ export default function Collecting() {
             }`}
           >
             {step.status === 'done' && (
-              <CheckCircle2 className="w-5 h-5 text-[#1DB954] shrink-0" />
+              <CheckCircle2 className="w-5 h-5 text-[#1DB954] shrink-0 stroke-[2.5]" />
             )}
             {step.status === 'active' && (
               <Loader2 className="w-5 h-5 text-[#1DB954] animate-spin shrink-0" />

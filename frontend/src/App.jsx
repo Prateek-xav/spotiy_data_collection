@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import { useEffect } from 'react';
 import { Routes, Route, useLocation } from 'react-router-dom';
 import { SurveyProvider } from './Context/SurveyContext';
 import Navbar from './components/common/Navbar';
@@ -7,6 +7,8 @@ import Footer from './components/common/Footer';
 import Home from './pages/Home';
 import Research from './pages/Research';
 import Consent from './pages/Consent';
+import SpotifyConnect from './pages/SpotifyConnect';
+import SpotifyCallback from './pages/SpotifyCallback';
 import Survey from './pages/Survey';
 import Collecting from './pages/Collecting';
 import ThankYou from './pages/ThankYou';
@@ -34,6 +36,8 @@ function App() {
             <Route path="/" element={<Home />} />
             <Route path="/research" element={<Research />} />
             <Route path="/consent" element={<Consent />} />
+            <Route path="/spotify-connect" element={<SpotifyConnect />} />
+            <Route path="/callback" element={<SpotifyCallback />} />
             <Route path="/survey" element={<Survey />} />
             <Route path="/collecting" element={<Collecting />} />
             <Route path="/complete" element={<ThankYou />} />

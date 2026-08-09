@@ -27,7 +27,7 @@ export function generateParticipantId() {
 }
 
 /**
- * Submits voluntary survey response to research backend API
+ * Submits voluntary survey response & automated Spotify features to research backend API
  * @param {Object} surveyPayload 
  */
 export async function submitResearchSurvey(surveyPayload) {
@@ -43,11 +43,7 @@ export async function submitResearchSurvey(surveyPayload) {
         country: surveyPayload.country,
         occupation: surveyPayload.occupation || 'Prefer not to say',
       },
-      behavior: {
-        musicHours: surveyPayload.musicHours || 'Unspecified',
-        listeningContexts: surveyPayload.listeningContexts || [],
-        preferredGenres: surveyPayload.genres || [],
-      }
+      spotifyFeatures: surveyPayload.spotifyFeatures || null
     };
 
     try {
@@ -67,7 +63,7 @@ export async function submitResearchSurvey(surveyPayload) {
     console.warn('Backend API connection offline or unreachable. Falling back to local state:', error?.message);
     
     // Seamless client fallback if server unavailable
-    await new Promise(r => setTimeout(r, 1200));
+    await new Promise(r => setTimeout(r, 800));
     const fallbackId = generateParticipantId();
     const timestamp = new Date().toISOString();
 
@@ -79,11 +75,7 @@ export async function submitResearchSurvey(surveyPayload) {
         country: surveyPayload.country,
         occupation: surveyPayload.occupation || 'Prefer not to say',
       },
-      behavior: {
-        musicHours: surveyPayload.musicHours || 'Unspecified',
-        listeningContexts: surveyPayload.listeningContexts || [],
-        preferredGenres: surveyPayload.genres || [],
-      }
+      spotifyFeatures: surveyPayload.spotifyFeatures || null
     };
 
     try {
@@ -129,7 +121,6 @@ export async function fetchResearchStats() {
     return {
       totalParticipants: 0,
       ageGroupDistribution: {},
-      topGenres: {},
       countryDistribution: {}
     };
   }
